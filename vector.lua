@@ -104,10 +104,14 @@ function Vector:rotated(phi)
 end
 
 function Vector:perpendicular()
-    return vector(-self.y, self.x)
+	return vector(-self.y, self.x)
 end
 
 function Vector:projectOn(v)
-    assert(isvector(v), "invalid argument: cannot project onto anything other than a vector.")
-    return (self * v) * v / v:len2()
+	assert(isvector(v), "invalid argument: cannot project onto anything other than a vector.")
+	return (self * v) * v / v:len2()
+end
+
+function Vector:cross(other)
+	return self.x * other.y - self.y * other.x
 end
