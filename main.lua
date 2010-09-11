@@ -38,6 +38,9 @@ function Polygon:draw()
 	--	local k = m + e.normal
 	--	love.graphics.line(m.x,m.y,k.x,k.y)
 	--end
+	-- debug: draw outline
+	--love.graphics.setColor(100,100,100)
+	--love.graphics.polygon('line', self.points)
 end
 
 Light = Class{function(self, pos, range, intensity, color)
@@ -74,11 +77,12 @@ function Light:castShadow(poly)
 	return poly
 end
 
-local light_img
+local light_img, light_mask
 function Light:draw()
 	love.graphics.setColor(self.color[1], self.color[2], self.color[3])
 	love.graphics.draw(light_img, self.pos.x, self.pos.y, 0, self.range,self.range, 300,300)
 end
+
 function Light:drawMask()
 	love.graphics.setColor(0,0,0)
 	love.graphics.draw(light_mask, self.pos.x, self.pos.y, 0, self.range,self.range,300,300)
@@ -91,11 +95,65 @@ function Light:drawMask()
 	if lr.y < 600 then love.graphics.rectangle('fill', 0,lr.y,800,600) end
 
 	if self.intensity < 1 then
-		love.graphics.setColor(0,0,0,self.intensity*255)
+		love.graphics.setColor(0,0,0,(1-self.intensity)*255)
 		love.graphics.rectangle('fill', ul.x,ul.y,(lr-ul):unpack())
 	end
 end
 
+Player = Class{name="Player", function(self, p)
+	self.light = Light(p:clone(), 270, 1, {255,230,180})
+	self.vel = vector(0,0)
+	self.t = 0
+	self.last = 0
+end}
+
+function Player:predraw(objects)
+	self.light:draw()
+	love.graphics.setColor(0,0,0)
+	for _,o in ipairs(objects) do
+		love.graphics.polygon('fill', self.light:castShadow(o))
+	end
+end
+
+function Player:draw()
+	love.graphics.setColor(0,0,0)
+	love.graphics.circle('line', self.light.pos.x, self.light.pos.y, 10)
+	-- black out the rest
+	self.light:drawMask()
+end
+
+function Player:update(dt)
+--	self.light.pos = vector(love.mouse.getPosition())
+	self.t = self.t + dt
+	local a = vector(0,0)
+	if love.keyboard.isDown('a') or love.keyboard.isDown('left') then
+		a.x = -1
+	elseif love.keyboard.isDown('d') or love.keyboard.isDown('right') then
+		a.x = 1
+	end
+	if love.keyboard.isDown('w') or love.keyboard.isDown('up') then
+		a.y = -1
+	elseif love.keyboard.isDown('s') or love.keyboard.isDown('down') then
+		a.y = 1
+	end
+
+	self.vel = self.vel / 1.2 + a * 60 * dt
+	self.vel.y = self.vel.y + .07 * math.sin(math.pi * self.t)
+	self.vel.x = self.vel.x + .02 * math.cos(math.pi * math.pi * self.t)
+
+	self.light.pos = self.light.pos + self.vel
+	self.light.pos.x = math.max(0, math.min(800, self.light.pos.x))
+	self.light.pos.y = math.max(0, math.min(600, self.light.pos.y))
+
+	self.last = math.min(1, math.max(0, 2*math.random()-1 + self.last * self.last))
+	self.light.intensity = .98 + .03 * self.last
+	self.light.range = self.light.intensity / 1.25
+end
+
+
+--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==
+-- commencing holy trinity
+--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==
 function love.load()
 	local light_img_id = love.image.newImageData(600,600)
 	light_img_id:mapPixel(function(x,y) x,y = x/300-1,y/300-1
@@ -106,10 +164,9 @@ function love.load()
 	light_img = love.graphics.newImage(light_img_id)
 
 	light_mask = love.image.newImageData(600,600)
-	light_mask:mapPixel(function(x,y) x,y = x/300-1, y/300-1
-		if x*x+y*y >= 1 then return 0,0,0,255 end
-		local i = (1 - math.min(1, math.sqrt(x*x+y*y)) ^ 2) * 255
-		return 0,0,0,255-i
+	light_mask:mapPixel(function(x,y)
+		local _,_,_,a = light_img_id:getPixel(x,y)
+		return 0,0,0,255-a
 	end)
 	light_mask = love.graphics.newImage(light_mask)
 
@@ -123,14 +180,16 @@ function love.load()
 		return conc(tbl1,...)
 	end
 	objects = map(Polygon, conc(
-			Triangulize{vector(100,100), vector(130,70), vector(150,120), vector(120,160), vector(130,110) },
-			Triangulize{vector(607,53), vector(729,19), vector(790,135), vector(709,220), vector(707,108), vector(583,97), vector(624,75)},
-			{{vector(166,416), vector(71,504), vector(218,551), vector(190,493)}},
+			SplitConvex{vector(100,100), vector(130,70), vector(150,120), vector(120,160), vector(130,110) },
+			SplitConvex{vector(607,53), vector(729,19), vector(790,135), vector(709,220), vector(707,108), vector(583,97), vector(624,75)},
+			SplitConvex{vector(166,416), vector(71,504), vector(218,551), vector(190,493)},
 			{ConvexHull{vector(250,250), vector(260,350), vector(320,410), vector(400,240), vector(300,190) },
 			 ConvexHull{vector(500,200), vector(550,249), vector(490,210), vector(510,50) },
 			 ConvexHull{vector(518,346), vector(456,455), vector(525,520), vector(592,475), vector(587,365) }}))
 
-	light = Light(vector(500,400), 400, 1, {255,230,180})
+	player = Player(vector(400,300))
+
+	love.mouse.setVisible(false)
 end
 
 function love.mousereleased(x,y,btn)
@@ -138,16 +197,11 @@ function love.mousereleased(x,y,btn)
 end
 
 function love.draw()
-	light:draw()
-	love.graphics.setColor(0,0,0)
-	for _,o in ipairs(objects) do
-		love.graphics.polygon('fill', light:castShadow(o))
-	end
+	player:predraw(objects)
 	for _,o in ipairs(objects) do
 		o:draw()
 	end
-	-- black out the rest
-	light:drawMask()
+	player:draw()
 
 	love.graphics.setColor(100,100,100)
 	love.graphics.print(string.format("FPS: %d", love.timer.getFPS()), 10,10)
@@ -155,6 +209,5 @@ end
 
 local t = 0
 function love.update(dt)
-	t = t + dt
-	light.pos = vector(love.mouse.getPosition())
+	player:update(dt)
 end
