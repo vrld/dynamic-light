@@ -1,7 +1,29 @@
 require 'vector'
 
-local function isConcave(p1,p2,p3)
+function isConcaveEdge(p1,p2,p3)
 	return (p3 - p1):perpendicular() * (p2 - p1) > 0
+end
+
+function mergePoly(p,q, idxp, idxq)
+	local ret = {}
+	for i=1,idxp do ret[#ret+1] = p[i] end
+	for i=2,#q-1 do
+		local k = i + idxq - 1
+		if k > #q then k = k - #q end
+		ret[#ret+1] = q[k]
+	end
+	for i=idxp+1,#p do ret[#ret+1] = p[i] end
+	return ret
+end
+
+function isConvexPoly(poly)
+	for i=1,#poly do
+		local l,p,r = i==1 and poly[#poly] or poly[i-1], poly[i], i==#poly and poly[1] or poly[i+1]
+		if isConcaveEdge(l,p,r) then
+			return false
+		end
+	end
+	return true
 end
 
 function clone(t)
@@ -19,7 +41,7 @@ function ConvexHull(points)
 	local upper = {points[1], points[2]}
 	for i=3,#points do
 		upper[#upper+1] = points[i]
-		while #upper > 2 and not isConcave(upper[#upper-2], upper[#upper-1], upper[#upper]) do
+		while #upper > 2 and not isConcaveEdge(upper[#upper-2], upper[#upper-1], upper[#upper]) do
 			table.remove(upper, #upper-1)
 		end
 	end
@@ -28,7 +50,7 @@ function ConvexHull(points)
 	local lower = {points[#points], points[#points-1]}
 	for i = #points-2,1,-1 do
 		lower[#lower+1] = points[i]
-		while #lower > 2 and not isConcave(lower[#lower-2], lower[#lower-1], lower[#lower]) do
+		while #lower > 2 and not isConcaveEdge(lower[#lower-2], lower[#lower-1], lower[#lower]) do
 			table.remove(lower, #lower-1)
 		end
 	end
@@ -59,11 +81,11 @@ function Triangulize(poly)
 	for i,p in ipairs(poly) do
 		local l, r  = (i == 1) and poly[#poly] or poly[i-1], (i == #poly) and poly[1] or poly[i+1]
 		adj[p] = {p = p, l = l, r = r}
-		if isConcave(l,p,r) then concave[p] = p end
+		if isConcaveEdge(l,p,r) then concave[p] = p end
 	end
 	-- test if edge is an 'ear'
 	local function isEar(p1,p2,p3)
-		if isConcave(p1,p2,p3) then return false end
+		if isConcaveEdge(p1,p2,p3) then return false end
 		for q,_ in pairs(concave) do
 			if inTriangle(q, p1,p2,p3) then return false end
 		end
@@ -77,10 +99,10 @@ function Triangulize(poly)
 		-- if ear, remove ear
 		if not concave[p.p] and isEar(p.l, p.p, p.r) then
 			triangles[#triangles+1] = {p.l,p.p,p.r}
-			if concave[p.l] and not isConcave(adj[p.l].l, p.l, p.r) then
+			if concave[p.l] and not isConcaveEdge(adj[p.l].l, p.l, p.r) then
 				concave[p.l] = nil
 			end
-			if concave[p.r] and not isConcave(p.l, p.r, adj[p.r].r) then
+			if concave[p.r] and not isConcaveEdge(p.l, p.r, adj[p.r].r) then
 				concave[p.r] = nil
 			end
 			adj[p] = nil
@@ -99,4 +121,48 @@ function Triangulize(poly)
 	triangles[#triangles+1] = {p.l,p.p,p.r}
 
 	return triangles
+end
+
+-- not perfect but sufficient
+-- input: concave polygon
+-- output: list of convex polygons
+function SplitConvex(poly)
+	local function shareEdge(p, q)
+		local vertices = {}
+		for i,v in ipairs(q) do vertices[v] = i end
+		for i,v in ipairs(p) do
+			local w = i == #p and p[1] or p[i+1]
+			if vertices[v] and vertices[w] then
+				return true, i, vertices[v]
+			end
+		end
+		return false
+	end
+
+	if #poly <= 3 then return {poly} end
+	-- greedily merge triangles
+	local convex = Triangulize(poly)
+	local i = 1
+	repeat
+		local p = convex[i]
+		local k = i + 1
+		while k <= #convex do
+			local q = convex[k]
+			local doShareEdge, idxp, idxq = shareEdge(p,q)
+			if doShareEdge then
+				local merged = mergePoly(p,q, idxp,idxq)
+				if isConvexPoly(merged) then
+					convex[i] = merged
+					table.remove(convex, k)
+				else
+					k = k + 1
+				end
+			else
+				k = k + 1
+			end
+		end
+		i = i + 1
+	until i >= #convex
+
+	return convex
 end
