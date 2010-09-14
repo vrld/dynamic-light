@@ -80,7 +80,7 @@ end
 
 Light = Class{function(self, pos, range, intensity, color)
 	self.pos = pos
-	self.range = range and range / 300 or 1
+	self.range = range and range / 256 or 1
 	self.intensity = intensity or 1
 	self.color = color or {255,255,255}
 end}
@@ -90,7 +90,7 @@ function Light:castShadow(poly)
 	local vertices = {}
 	for _,e in ipairs(poly.edges) do
 		local d = (e.p1 + e.p2)/2
-		if (self.pos - d):len2() < (self.range * 300)^2 then inRange = true end
+		if (self.pos - d):len2() < (self.range * 256)^2 then inRange = true end
 		if (d - self.pos) * e.normal > 0 then
 			vertices[#vertices+1] = e.p1
 			vertices[#vertices+1] = e.p2
@@ -115,17 +115,17 @@ end
 local light_img, light_mask
 function Light:draw()
 	love.graphics.setColor(self.color[1], self.color[2], self.color[3])
-	love.graphics.draw(light_img, self.pos.x, self.pos.y, 0, self.range,self.range, 300,300)
+	love.graphics.draw(light_img, self.pos.x, self.pos.y, 0, self.range,self.range, 256,256)
 end
 
 function Light:drawMask()
 	love.graphics.setColor(0,0,0)
-	love.graphics.draw(light_mask, self.pos.x, self.pos.y, 0, self.range,self.range,300,300)
-	local ul = self.pos - vector(self.range,self.range)*300
+	love.graphics.draw(light_mask, self.pos.x, self.pos.y, 0, self.range,self.range,256,256)
+	local ul = self.pos - vector(self.range,self.range)*256
 	if ul.x > 0 then love.graphics.rectangle('fill', 0,0,ul.x,600) end
 	if ul.y > 0 then love.graphics.rectangle('fill', 0,0,800,ul.y) end
 
-	local lr = self.pos + vector(self.range,self.range)*300
+	local lr = self.pos + vector(self.range,self.range)*256
 	if lr.x < 800 then love.graphics.rectangle('fill', lr.x,0,800,600) end
 	if lr.y < 600 then love.graphics.rectangle('fill', 0,lr.y,800,600) end
 
@@ -195,7 +195,7 @@ function Player:update(dt)
 	-- flicker light
 	self.last = math.min(1, math.max(0, 2*math.random()-1 + self.last * self.last))
 	self.light.intensity = .98 + .04 * self.last
-	self.light.range = self.light.intensity / 1.12
+	self.light.range = self.light.intensity / 1.1
 end
 
 
@@ -211,15 +211,15 @@ local function conc(tbl1,tbl2,...)
 end
 
 function love.load()
-	local light_img_id = love.image.newImageData(600,600)
-	light_img_id:mapPixel(function(x,y) x,y = x/300-1,y/300-1
+	local light_img_id = love.image.newImageData(512,512)
+	light_img_id:mapPixel(function(x,y) x,y = x/256-1,y/256-1
 		if x*x+y*y >= 1 then return 0,0,0,0 end
-		local i = (1 - math.min(1, math.sqrt(x*x+y*y)) ^ 0.7) * 255
+		local i = (1 - math.min(1, math.sqrt(x*x+y*y)) ^ .9) * 255
 		return 255,255,255,i
 	end)
 	light_img = love.graphics.newImage(light_img_id)
 
-	light_mask = love.image.newImageData(600,600)
+	light_mask = love.image.newImageData(512,512)
 	light_mask:mapPixel(function(x,y)
 		local _,_,_,a = light_img_id:getPixel(x,y)
 		return 0,0,0,255-a
@@ -227,13 +227,12 @@ function love.load()
 	light_mask = love.graphics.newImage(light_mask)
 
 	love.graphics.setBackgroundColor(0,0,0)
-    objects = {}
---	objects = map(Polygon, conc(
---			SplitConvex{vector(100,100), vector(130,70), vector(150,120), vector(120,160), vector(130,110) },
---			SplitConvex{vector(607,53), vector(729,19), vector(790,135), vector(709,220), vector(707,108), vector(583,97), vector(624,75)},
---			{ConvexHull{vector(250,250), vector(260,350), vector(320,410), vector(400,240), vector(300,190) },
---			 ConvexHull{vector(500,200), vector(550,249), vector(490,210), vector(510,50) },
---			 ConvexHull{vector(518,346), vector(456,455), vector(525,520), vector(592,475), vector(587,365) }}))
+	objects = map(Polygon, conc(
+			SplitConvex{vector(100,100), vector(130,70), vector(150,120), vector(120,160), vector(130,110) },
+			SplitConvex{vector(607,53), vector(729,19), vector(790,135), vector(709,220), vector(707,108), vector(583,97), vector(624,75)},
+			{ConvexHull{vector(250,250), vector(260,350), vector(320,410), vector(400,240), vector(300,190) },
+			 ConvexHull{vector(500,200), vector(550,249), vector(490,210), vector(510,50) },
+			 ConvexHull{vector(518,346), vector(456,455), vector(525,520), vector(592,475), vector(587,365) }}))
 
 	player = Player(vector(400,300))
 
