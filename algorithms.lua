@@ -19,7 +19,7 @@ end
 function isConvexPoly(poly)
 	for i=1,#poly do
 		local l,p,r = i==1 and poly[#poly] or poly[i-1], poly[i], i==#poly and poly[1] or poly[i+1]
-		if isConcaveEdge(l,p,r) then
+		if isConcaveEdge(r,p,l) then
 			return false
 		end
 	end
@@ -32,7 +32,7 @@ function clone(t)
 	return tt
 end
 function ConvexHull(points)
-	-- graham scan
+	-- graham's scan
 	if #points <= 3 then return points end
 	points = clone(points)
 	table.sort(points)
@@ -94,11 +94,11 @@ function Triangulize(poly)
 
 	-- while still points left to triangulize
 	local nPoints = #poly
-	local p, lastP = adj[poly[2]], nil
+	local p, lastP = adj[poly[2]], adj[poly[2]]
 	while nPoints > 3 do
 		-- if ear, remove ear
 		if not concave[p.p] and isEar(p.l, p.p, p.r) then
-			triangles[#triangles+1] = {p.l,p.p,p.r}
+			triangles[#triangles+1] = {p.r,p.p,p.l}
 			if concave[p.l] and not isConcaveEdge(adj[p.l].l, p.l, p.r) then
 				concave[p.l] = nil
 			end
@@ -118,7 +118,7 @@ function Triangulize(poly)
 			end
 		end
 	end
-	triangles[#triangles+1] = {p.l,p.p,p.r}
+	triangles[#triangles+1] = {p.r,p.p,p.l}
 
 	return triangles
 end
@@ -153,6 +153,7 @@ function SplitConvex(poly)
 				local merged = mergePoly(p,q, idxp,idxq)
 				if isConvexPoly(merged) then
 					convex[i] = merged
+					p = convex[i]
 					table.remove(convex, k)
 				else
 					k = k + 1
