@@ -28,12 +28,12 @@ function Vector.__unm(a)
 end
 
 function Vector.__add(a,b)
-	assert(isvector(a) and isvector(b), "Add: wrong argument types (<vector> expected)")
+--	assert(isvector(a) and isvector(b), "Add: wrong argument types (<vector> expected)")
 	return vector(a.x+b.x, a.y+b.y)
 end
 
 function Vector.__sub(a,b)
-	assert(isvector(a) and isvector(b), "Sub: wrong argument types (<vector> expexted)")
+--	assert(isvector(a) and isvector(b), "Sub: wrong argument types (<vector> expexted)")
 	return vector(a.x-b.x, a.y-b.y)
 end
 
@@ -43,13 +43,13 @@ function Vector.__mul(a,b)
 	elseif type(b) == "number" then
 		return vector(b*a.x, b*a.y)
 	else
-		assert(isvector(a) and isvector(b), "Mul: wrong argument types (<vector> or <number> expected)")
+--		assert(isvector(a) and isvector(b), "Mul: wrong argument types (<vector> or <number> expected)")
 		return a.x*b.x + a.y*b.y
 	end
 end
 
 function Vector.__div(a,b)
-	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
+--	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
 	return vector(a.x / b, a.y / b)
 end
 
@@ -66,7 +66,7 @@ function Vector.__le(a,b)
 end
 
 function Vector.permul(a,b)
-	assert(isvector(a) and isvector(b), "permul: wrong argument types (<vector> expected)")
+--	assert(isvector(a) and isvector(b), "permul: wrong argument types (<vector> expected)")
 	return vector(a.x*b.x, a.y*b.y)
 end
 
@@ -79,7 +79,7 @@ function Vector:len()
 end
 
 function Vector.dist(a, b)
-	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
+--	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
 	return (b-a):len()
 end
 
@@ -108,7 +108,7 @@ function Vector:perpendicular()
 end
 
 function Vector:projectOn(v)
-	assert(isvector(v), "invalid argument: cannot project onto anything other than a vector.")
+--	assert(isvector(v), "invalid argument: cannot project onto anything other than a vector.")
 	return (self * v) * v / v:len2()
 end
 
