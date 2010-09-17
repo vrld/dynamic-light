@@ -2,6 +2,7 @@ require 'algorithms'
 require 'class'
 require 'camera'
 require 'spatialhash'
+require 'profiler'
 
 local cam, player, hash
 
@@ -176,26 +177,34 @@ function Player:update(dt)
 		a.y = 1
 	end
 
-	self.vel = self.vel / 1.08 + a * 1200 * dt
-	self.vel.y = self.vel.y + 1.2 * math.sin(math.pi * self.t)
-	self.vel.x = self.vel.x + .8 * math.cos(math.pi * math.pi * self.t)
-
-	local pos = self.light.pos + self.vel * dt
-
-	local move = vector(0,0)
-	for _,o in ipairs(hash:getNeighbors(pos, self.light.range * 256)) do
-		local collide, separatingVector = o:intersectsCircle(pos, 12)
-		if collide then
-			move = move + separatingVector
-		end
-	end
-
-	self.light.pos = pos + move
-
 	-- flicker light
 	self.last = math.min(1, math.max(0, 2*math.random()-1 + self.last * self.last))
 	self.light.intensity = .98 + .04 * self.last
 	self.light.range = self.light.intensity / 1.1
+
+	-- Colission detection in fixed timesteps
+	local function moveAndCollide(dt)
+		self.vel = self.vel / 1.04 + a * 1200 * dt
+		self.vel.y = self.vel.y + 1.2 * math.sin(math.pi * self.t)
+		self.vel.x = self.vel.x + .8 * math.cos(math.pi * math.pi * self.t)
+
+		local pos = self.light.pos + self.vel * dt
+
+		local move = vector(0,0)
+		for _,o in ipairs(hash:getNeighbors(pos, self.light.range * 256)) do
+			local collide, separatingVector = o:intersectsCircle(pos, 12)
+			if collide then
+				move = move + separatingVector
+			end
+		end
+
+		self.light.pos = pos + move
+	end
+	while dt > .01 do
+		moveAndCollide(.01)
+		dt = dt - .01
+	end
+	moveAndCollide(dt)
 end
 
 
@@ -242,6 +251,8 @@ function love.load()
 	end
 
 	love.graphics.setLine(2)
+
+--	profiler.start()
 end
 
 local points = {}
