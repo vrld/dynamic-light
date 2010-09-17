@@ -50,6 +50,9 @@ function Polygon:draw()
 	if debug.showWireframe or self.flagColission then
 		love.graphics.setColor(100,255,100)
 		love.graphics.polygon('line', self.points)
+		for i,v in ipairs(self.vertices) do
+			love.graphics.print(tostring(i), v.x+5, v.y+5)
+		end
 	end
 end
 
@@ -91,21 +94,22 @@ Light = Class{function(self, pos, range, intensity, color)
 end}
 
 function Light:castShadow(poly)
-	local vertices = {}
-	for _,e in ipairs(poly.edges) do
-		local d = (e.p1 + e.p2)/2
-		if (d - self.pos) * e.normal > 0 then
-			vertices[#vertices+1] = e.p1
-			vertices[#vertices+1] = e.p2
-
-			vertices[#vertices+1] = e.p1 + 800 * (e.p1 - self.pos):normalized()
-			vertices[#vertices+1] = e.p2 + 800 * (e.p2 - self.pos):normalized()
+	local lastEdgeVisible = ((poly.edges[1].center - self.pos) * poly.edges[1].normal < 0)
+	local startv, endv = poly.edges[1].p1, poly.edges[1].p1
+	for i=2,#poly.edges do
+		local e = poly.edges[i]
+		local isVisible = ((e.center - self.pos) * e.normal < 0)
+		if isVisible and not lastEdgeVisible then
+			startv = e.p1
+		elseif not isVisible and lastEdgeVisible then
+			endv = e.p1
 		end
+		lastEdgeVisible = isVisible
 	end
 
-	vertices = ConvexHull(vertices)
+	local vertices = {endv + 800 * (endv - self.pos), startv + 800 * (startv - self.pos), startv, endv}
 	local poly = {}
-	for i,v in ipairs(vertices) do
+	for _,v in ipairs(vertices) do
 		poly[#poly+1] = v.x
 		poly[#poly+1] = v.y
 	end
