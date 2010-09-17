@@ -2,7 +2,7 @@ require 'algorithms'
 require 'class'
 require 'camera'
 require 'spatialhash'
-require 'profiler'
+--require 'profiler'
 
 local cam, player, hash
 
@@ -123,12 +123,13 @@ function Light:drawMask(cam)
 	cam:postdraw()
 	love.graphics.setColor(0,0,0)
 	local pos = cam:toCameraCoords(self.pos)
-	love.graphics.draw(light_mask, pos.x, pos.y, 0, self.range,self.range,256,256)
-	local ul = pos - vector(self.range,self.range)*256
+	love.graphics.draw(light_mask, pos.x, pos.y, 0, self.range*cam.zoom,self.range*cam.zoom,256,256)
+
+	local ul = pos - vector(self.range,self.range)*256*cam.zoom
 	if ul.x > 0 then love.graphics.rectangle('fill', 0,0,ul.x,600) end
 	if ul.y > 0 then love.graphics.rectangle('fill', 0,0,800,ul.y) end
 
-	local lr = pos + vector(self.range,self.range)*256
+	local lr = pos + vector(self.range,self.range)*256*cam.zoom
 	if lr.x < 800 then love.graphics.rectangle('fill', lr.x,0,800,600) end
 	if lr.y < 600 then love.graphics.rectangle('fill', 0,lr.y,800,600) end
 
@@ -144,12 +145,13 @@ Player = Class{name="Player", function(self, p)
 	self.vel = vector(0,0)
 	self.t = 0
 	self.last = 0
+	self.neighbors = {}
 end}
 
 function Player:predraw(objects)
 	self.light:draw()
 	love.graphics.setColor(0,0,0)
-	for _,o in ipairs(hash:getNeighbors(self.light.pos, self.light.range * 256)) do
+	for _,o in ipairs(self.neighbors) do
 		love.graphics.polygon('fill', self.light:castShadow(o))
 	end
 end
@@ -189,9 +191,10 @@ function Player:update(dt)
 		self.vel.x = self.vel.x + .8 * math.cos(math.pi * math.pi * self.t)
 
 		local pos = self.light.pos + self.vel * dt
+		local neighbors = hash:getNeighbors(pos, 12)
 
 		local move = vector(0,0)
-		for _,o in ipairs(hash:getNeighbors(pos, self.light.range * 256)) do
+		for _,o in ipairs(neighbors) do
 			local collide, separatingVector = o:intersectsCircle(pos, 12)
 			if collide then
 				move = move + separatingVector
@@ -205,6 +208,7 @@ function Player:update(dt)
 		dt = dt - .01
 	end
 	moveAndCollide(dt)
+	self.neighbors = hash:getNeighbors(self.light.pos, self.light.range * 256)
 end
 
 
@@ -272,7 +276,7 @@ function love.draw()
 		points[#points] = nil
 	end
 	love.graphics.setColor(100,100,100)
-	love.graphics.print(string.format("FPS: %d, Objects: %d", love.timer.getFPS(), #objects), 10,10)
+	love.graphics.print(string.format("FPS: %d, Objects: %d, Neighbors: %d", love.timer.getFPS(), #objects, #player.neighbors), 10,10)
 end
 
 function love.update(dt)
@@ -285,6 +289,9 @@ function love.keyreleased(key)
 	if key == 'n' then debug.showNormals = not debug.showNormals end
 	if key == 'd' then debug.noDarkening = not debug.noDarkening end
 	if key == 'c' then objects, hash = {}, Spatialhash(100) end
+
+	if key == 'q' then cam.zoom = cam.zoom / 1.1 end
+	if key == 'e' then cam.zoom = cam.zoom * 1.1 end
 end
 
 function love.mousereleased(x,y,btn)
