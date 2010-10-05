@@ -108,6 +108,18 @@ function Light:castShadow(poly)
 	end
 
 	local vertices = {endv + 800 * (endv - self.pos), startv + 800 * (startv - self.pos), startv, endv}
+	
+--	currently there is not way to draw filled concave polygons with love.graphics.polygon
+--	when there is, this is how to get the outline
+--	local vertices = {startv + 500 * (startv - self.pos), endv + 500 * (endv - self.pos)}
+--	local i, k = poly.indicies[startv], poly.indicies[endv]
+--	while k ~= i do
+--		vertices[#vertices+1] = poly.vertices[k]
+--		k = k + 1
+--		if k > #poly.vertices then k = 1 end
+--	end
+--	vertices[#vertices+1] = startv
+
 	local poly = {}
 	for _,v in ipairs(vertices) do
 		poly[#poly+1] = v.x
@@ -152,7 +164,7 @@ Player = Class{name="Player", function(self, p)
 	self.neighbors = {}
 end}
 
-function Player:predraw(objects)
+function Player:predraw()
 	self.light:draw()
 	love.graphics.setColor(0,0,0)
 	for _,o in ipairs(self.neighbors) do
@@ -160,7 +172,7 @@ function Player:predraw(objects)
 	end
 end
 
-function Player:draw(cam)
+function Player:draw(cam, objects)
 	love.graphics.setColor(0,0,0)
 	love.graphics.circle('line', self.light.pos.x, self.light.pos.y, 10)
 	-- black out the rest
@@ -191,8 +203,8 @@ function Player:update(dt)
 	-- Colission detection in fixed timesteps
 	local function moveAndCollide(dt)
 		self.vel = self.vel / 1.04 + a * 1200 * dt
-		self.vel.y = self.vel.y + 1.2 * math.sin(math.pi * self.t)
-		self.vel.x = self.vel.x + .8 * math.cos(math.pi * math.pi * self.t)
+		self.vel.y = self.vel.y + .8 * math.sin(math.pi * self.t)
+		self.vel.x = self.vel.x + .5 * math.cos(math.pi * math.pi * self.t)
 
 		local pos = self.light.pos + self.vel * dt
 		local neighbors = hash:getNeighbors(pos, 12)
@@ -260,7 +272,9 @@ function love.load()
 
 	love.graphics.setLine(2)
 
---	profiler.start()
+	if profiler then
+		profiler.start()
+	end
 end
 
 local points = {}
